@@ -275,26 +275,30 @@ class BLENDERMCP_PT_Panel(bpy.types.Panel):
         layout.separator()
 
         if not running:
-            layout.operator("blendermcp.start_server", text="Connect to Claude", icon="PLAY")
+            layout.operator("blendermcp.start_server", text="Connect to MCP Server", icon="PLAY")
         else:
             box = layout.box()
             box.label(text="● Connected", icon="SEQUENCE_COLOR_04")
             box.label(text=f"Running on port {scene.blendermcp_port}")
             layout.separator()
-            layout.operator("blendermcp.stop_server", text="Disconnect", icon="PAUSE")
+            layout.operator("blendermcp.stop_server", text="Disconnect from MCP Server", icon="PAUSE")
 
 
 class BLENDERMCP_OT_StartServer(bpy.types.Operator):
     bl_idname      = "blendermcp.start_server"
-    bl_label       = "Connect to Claude"
+    bl_label       = "Connect to MCP Server"
     bl_description = "Start the BlenderMCP server"
 
     def execute(self, context):
         scene = context.scene
-        if not hasattr(bpy.types, "blendermcp_server") or not bpy.types.blendermcp_server:
-            bpy.types.blendermcp_server = BlenderMCPServer(port=scene.blendermcp_port)
-        bpy.types.blendermcp_server.start()
-        scene.blendermcp_server_running = True
+        try:
+            if not hasattr(bpy.types, "blendermcp_server") or bpy.types.blendermcp_server is None:
+                bpy.types.blendermcp_server = BlenderMCPServer(port=scene.blendermcp_port)
+            bpy.types.blendermcp_server.start()
+            scene.blendermcp_server_running = True
+            self.report({"INFO"}, f"BlenderMCP server started on port {scene.blendermcp_port}")
+        except Exception as e:
+            self.report({"ERROR"}, f"Failed to start server: {e}")
         return {"FINISHED"}
 
 
