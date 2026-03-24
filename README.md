@@ -126,7 +126,7 @@ Edit `claude_desktop_config.json`:
 ```json
 {
     "mcpServers": {
-        "blender": {
+        "blender-mcp": {
             "command": "path/to/BlenderMCP/.venv/bin/python3",
             "args": ["path/to/BlenderMCP/src/blender_mcp/server.py"]
         }
@@ -143,7 +143,7 @@ Go to **Settings → MCP** and add:
 ```json
 {
     "mcpServers": {
-        "blender": {
+        "blender-mcp": {
             "command": "/path/to/BlenderMCP/.venv/bin/python3",
             "args": ["/path/to/BlenderMCP/src/blender_mcp/server.py"]
         }
@@ -155,7 +155,7 @@ Go to **Settings → MCP** and add:
 ```json
 {
     "mcpServers": {
-        "blender": {
+        "blender-mcp": {
             "command": "C:\\path\\to\\BlenderMCP\\.venv\\Scripts\\python.exe",
             "args": ["C:\\path\\to\\BlenderMCP\\src\\blender_mcp\\server.py"]
         }
@@ -194,7 +194,7 @@ For a remote Blender instance, add to your MCP config:
 ```json
 {
     "mcpServers": {
-        "blender": {
+        "blender-mcp": {
             "command": "/path/to/.venv/bin/python3",
             "args": ["/path/to/server.py"],
             "env": {
