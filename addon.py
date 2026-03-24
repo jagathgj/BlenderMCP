@@ -23,13 +23,13 @@ bl_info = {
 }
 
 
-class BlenderMCPServer:
+class JJBlenderMCPServer:
     def __init__(self, host='localhost', port=9876):
         self.host = host
         self.port = port
         self.running = False
-        self.socket = None
-        self.server_thread = None
+        self.srv_socket = None
+        self.srv_thread = None
 
     def start(self):
         if self.running:
@@ -39,16 +39,16 @@ class BlenderMCPServer:
         self.running = True
 
         try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.socket.bind((self.host, self.port))
-            self.socket.listen(1)
+            self.srv_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.srv_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.srv_socket.bind((self.host, self.port))
+            self.srv_socket.listen(1)
 
-            self.server_thread = threading.Thread(target=self._server_loop)
-            self.server_thread.daemon = True
-            self.server_thread.start()
+            self.srv_thread = threading.Thread(target=self._loop)
+            self.srv_thread.daemon = True
+            self.srv_thread.start()
 
-            print(f"BlenderMCP server started on {self.host}:{self.port}")
+            print(f"Blender MCP server started on {self.host}:{self.port}")
         except Exception as e:
             print(f"Failed to start server: {str(e)}")
             self.stop()
@@ -56,31 +56,31 @@ class BlenderMCPServer:
     def stop(self):
         self.running = False
 
-        if self.socket:
+        if self.srv_socket:
             try:
-                self.socket.close()
+                self.srv_socket.close()
             except:
                 pass
-            self.socket = None
+            self.srv_socket = None
 
-        if self.server_thread:
+        if self.srv_thread:
             try:
-                if self.server_thread.is_alive():
-                    self.server_thread.join(timeout=1.0)
+                if self.srv_thread.is_alive():
+                    self.srv_thread.join(timeout=1.0)
             except:
                 pass
-            self.server_thread = None
+            self.srv_thread = None
 
-        print("BlenderMCP server stopped")
+        print("Blender MCP server stopped")
 
-    def _server_loop(self):
+    def _loop(self):
         print("Server thread started")
-        self.socket.settimeout(1.0)
+        self.srv_socket.settimeout(1.0)
 
         while self.running:
             try:
                 try:
-                    client, address = self.socket.accept()
+                    client, address = self.srv_socket.accept()
                     print(f"Connected to client: {address}")
 
                     client_thread = threading.Thread(
@@ -120,9 +120,9 @@ class BlenderMCPServer:
                         command = json.loads(buffer.decode('utf-8'))
                         buffer = b''
 
-                        def execute_wrapper():
+                        def run_command():
                             try:
-                                response = self.execute_command(command)
+                                response = self.handle_command(command)
                                 response_json = json.dumps(response)
                                 try:
                                     client.sendall(response_json.encode('utf-8'))
@@ -141,7 +141,7 @@ class BlenderMCPServer:
                                     pass
                             return None
 
-                        bpy.app.timers.register(execute_wrapper, first_interval=0.0)
+                        bpy.app.timers.register(run_command, first_interval=0.0)
                     except json.JSONDecodeError:
                         pass
                 except Exception as e:
@@ -156,19 +156,19 @@ class BlenderMCPServer:
                 pass
             print("Client handler stopped")
 
-    def execute_command(self, command):
+    def handle_command(self, command):
         try:
-            return self._execute_command_internal(command)
+            return self._run_command(command)
         except Exception as e:
             print(f"Error executing command: {str(e)}")
             traceback.print_exc()
             return {"status": "error", "message": str(e)}
 
-    def _execute_command_internal(self, command):
+    def _run_command(self, command):
         cmd_type = command.get("type")
         params = command.get("params", {})
 
-        handlers = {
+        cmd_map = {
             "ping":                    self.ping,
             "get_scene_info":          self.get_scene_info,
             "get_object_info":         self.get_object_info,
@@ -177,7 +177,7 @@ class BlenderMCPServer:
             "execute_code":            self.execute_code,
         }
 
-        handler = handlers.get(cmd_type)
+        handler = cmd_map.get(cmd_type)
         if handler:
             try:
                 result = handler(**params)
@@ -194,7 +194,7 @@ class BlenderMCPServer:
 
     def get_scene_info(self):
         scene = bpy.context.scene
-        scene_info = {
+        info = {
             "name": scene.name,
             "object_count": len(scene.objects),
             "frame_current": scene.frame_current,
@@ -208,36 +208,35 @@ class BlenderMCPServer:
         for i, obj in enumerate(bpy.context.scene.objects):
             if i >= 50:
                 break
-            obj_info = {
+            info["objects"].append({
                 "name": obj.name,
                 "type": obj.type,
                 "location": [round(float(obj.location.x), 2),
                              round(float(obj.location.y), 2),
                              round(float(obj.location.z), 2)],
-            }
-            scene_info["objects"].append(obj_info)
+            })
 
-        return scene_info
+        return info
 
     def list_objects(self, type_filter=None):
-        result = []
+        items = []
         for obj in bpy.context.scene.objects:
             if type_filter and obj.type != type_filter.upper():
                 continue
-            result.append({
+            items.append({
                 "name": obj.name,
                 "type": obj.type,
                 "visible": obj.visible_get(),
                 "location": [round(v, 4) for v in obj.location],
             })
-        return {"objects": result, "count": len(result)}
+        return {"objects": items, "count": len(items)}
 
     def get_object_info(self, name):
         obj = bpy.data.objects.get(name)
         if not obj:
             raise ValueError(f"Object not found: {name}")
 
-        obj_info = {
+        info = {
             "name": obj.name,
             "type": obj.type,
             "location": [obj.location.x, obj.location.y, obj.location.z],
@@ -249,34 +248,34 @@ class BlenderMCPServer:
 
         for slot in obj.material_slots:
             if slot.material:
-                obj_info["materials"].append(slot.material.name)
+                info["materials"].append(slot.material.name)
 
         if obj.type == 'MESH' and obj.data:
             mesh = obj.data
-            obj_info["mesh"] = {
+            info["mesh"] = {
                 "vertices": len(mesh.vertices),
                 "edges": len(mesh.edges),
                 "polygons": len(mesh.polygons),
             }
-            obj_info["world_bounding_box"] = self._get_aabb(obj)
+            info["world_bounding_box"] = self._calc_aabb(obj)
 
-        return obj_info
+        return info
 
     def get_viewport_screenshot(self, max_size=800, filepath=None, format="png"):
         try:
             if not filepath:
                 return {"error": "No filepath provided"}
 
-            area = None
-            for a in bpy.context.screen.areas:
-                if a.type == 'VIEW_3D':
-                    area = a
+            viewport = None
+            for area in bpy.context.screen.areas:
+                if area.type == 'VIEW_3D':
+                    viewport = area
                     break
 
-            if not area:
+            if not viewport:
                 return {"error": "No 3D viewport found"}
 
-            with bpy.context.temp_override(area=area):
+            with bpy.context.temp_override(area=viewport):
                 bpy.ops.screen.screenshot_area(filepath=filepath)
 
             img = bpy.data.images.load(filepath)
@@ -305,27 +304,26 @@ class BlenderMCPServer:
 
     def execute_code(self, code):
         try:
-            namespace = {"bpy": bpy, "mathutils": mathutils}
-            capture_buffer = io.StringIO()
-            with redirect_stdout(capture_buffer):
-                exec(code, namespace)
-            captured_output = capture_buffer.getvalue()
-            return {"executed": True, "result": captured_output}
+            ns = {"bpy": bpy, "mathutils": mathutils}
+            output_buffer = io.StringIO()
+            with redirect_stdout(output_buffer):
+                exec(code, ns)
+            return {"executed": True, "result": output_buffer.getvalue()}
         except Exception as e:
             raise Exception(f"Code execution error: {str(e)}")
 
     @staticmethod
-    def _get_aabb(obj):
-        local_bbox_corners = [mathutils.Vector(corner) for corner in obj.bound_box]
-        world_bbox_corners = [obj.matrix_world @ corner for corner in local_bbox_corners]
-        min_corner = mathutils.Vector(map(min, zip(*world_bbox_corners)))
-        max_corner = mathutils.Vector(map(max, zip(*world_bbox_corners)))
-        return [[*min_corner], [*max_corner]]
+    def _calc_aabb(obj):
+        local_corners = [mathutils.Vector(corner) for corner in obj.bound_box]
+        world_corners = [obj.matrix_world @ corner for corner in local_corners]
+        mn = mathutils.Vector(map(min, zip(*world_corners)))
+        mx = mathutils.Vector(map(max, zip(*world_corners)))
+        return [[*mn], [*mx]]
 
 
-class BLENDERMCP_PT_Panel(bpy.types.Panel):
+class JJ_PT_BlenderMCPPanel(bpy.types.Panel):
     bl_label = "Blender MCP"
-    bl_idname = "BLENDERMCP_PT_Panel"
+    bl_idname = "JJ_PT_BlenderMCPPanel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = 'BlenderMCP'
@@ -334,85 +332,85 @@ class BLENDERMCP_PT_Panel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
 
-        layout.prop(scene, "blendermcp_port")
+        layout.prop(scene, "jj_mcp_port")
 
         layout.separator()
 
-        if not scene.blendermcp_server_running:
-            layout.operator("blendermcp.start_server", text="Connect to MCP Server")
+        if not scene.jj_mcp_running:
+            layout.operator("jj.mcp_connect", text="Connect to MCP Server")
         else:
-            layout.operator("blendermcp.stop_server", text="Disconnect from MCP Server")
-            layout.label(text=f"Running on port {scene.blendermcp_port}")
+            layout.operator("jj.mcp_disconnect", text="Disconnect from MCP Server")
+            layout.label(text=f"Running on port {scene.jj_mcp_port}")
 
 
-class BLENDERMCP_OT_StartServer(bpy.types.Operator):
-    bl_idname = "blendermcp.start_server"
+class JJ_OT_MCPConnect(bpy.types.Operator):
+    bl_idname = "jj.mcp_connect"
     bl_label = "Connect to MCP Server"
-    bl_description = "Start the BlenderMCP server"
+    bl_description = "Start the Blender MCP server"
 
     def execute(self, context):
         scene = context.scene
 
-        if not hasattr(bpy.types, "blendermcp_server") or not bpy.types.blendermcp_server:
-            bpy.types.blendermcp_server = BlenderMCPServer(port=scene.blendermcp_port)
+        if not hasattr(bpy.types, "jj_mcp_server") or not bpy.types.jj_mcp_server:
+            bpy.types.jj_mcp_server = JJBlenderMCPServer(port=scene.jj_mcp_port)
 
-        bpy.types.blendermcp_server.start()
-        scene.blendermcp_server_running = True
+        bpy.types.jj_mcp_server.start()
+        scene.jj_mcp_running = True
 
         return {'FINISHED'}
 
 
-class BLENDERMCP_OT_StopServer(bpy.types.Operator):
-    bl_idname = "blendermcp.stop_server"
+class JJ_OT_MCPDisconnect(bpy.types.Operator):
+    bl_idname = "jj.mcp_disconnect"
     bl_label = "Disconnect from MCP Server"
-    bl_description = "Stop the MCP server connection"
+    bl_description = "Stop the Blender MCP server"
 
     def execute(self, context):
         scene = context.scene
 
-        if hasattr(bpy.types, "blendermcp_server") and bpy.types.blendermcp_server:
-            bpy.types.blendermcp_server.stop()
-            del bpy.types.blendermcp_server
+        if hasattr(bpy.types, "jj_mcp_server") and bpy.types.jj_mcp_server:
+            bpy.types.jj_mcp_server.stop()
+            del bpy.types.jj_mcp_server
 
-        scene.blendermcp_server_running = False
+        scene.jj_mcp_running = False
 
         return {'FINISHED'}
 
 
 def register():
-    bpy.types.Scene.blendermcp_port = IntProperty(
+    bpy.types.Scene.jj_mcp_port = IntProperty(
         name="Port",
-        description="Port for the BlenderMCP server",
+        description="Port for the Blender MCP server",
         default=9876,
         min=1024,
         max=65535
     )
 
-    bpy.types.Scene.blendermcp_server_running = bpy.props.BoolProperty(
+    bpy.types.Scene.jj_mcp_running = bpy.props.BoolProperty(
         name="Server Running",
         default=False
     )
 
-    bpy.utils.register_class(BLENDERMCP_PT_Panel)
-    bpy.utils.register_class(BLENDERMCP_OT_StartServer)
-    bpy.utils.register_class(BLENDERMCP_OT_StopServer)
+    bpy.utils.register_class(JJ_PT_BlenderMCPPanel)
+    bpy.utils.register_class(JJ_OT_MCPConnect)
+    bpy.utils.register_class(JJ_OT_MCPDisconnect)
 
-    print("BlenderMCP addon registered")
+    print("Blender MCP addon registered")
 
 
 def unregister():
-    if hasattr(bpy.types, "blendermcp_server") and bpy.types.blendermcp_server:
-        bpy.types.blendermcp_server.stop()
-        del bpy.types.blendermcp_server
+    if hasattr(bpy.types, "jj_mcp_server") and bpy.types.jj_mcp_server:
+        bpy.types.jj_mcp_server.stop()
+        del bpy.types.jj_mcp_server
 
-    bpy.utils.unregister_class(BLENDERMCP_PT_Panel)
-    bpy.utils.unregister_class(BLENDERMCP_OT_StartServer)
-    bpy.utils.unregister_class(BLENDERMCP_OT_StopServer)
+    bpy.utils.unregister_class(JJ_PT_BlenderMCPPanel)
+    bpy.utils.unregister_class(JJ_OT_MCPConnect)
+    bpy.utils.unregister_class(JJ_OT_MCPDisconnect)
 
-    del bpy.types.Scene.blendermcp_port
-    del bpy.types.Scene.blendermcp_server_running
+    del bpy.types.Scene.jj_mcp_port
+    del bpy.types.Scene.jj_mcp_running
 
-    print("BlenderMCP addon unregistered")
+    print("Blender MCP addon unregistered")
 
 
 if __name__ == "__main__":
