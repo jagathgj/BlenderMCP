@@ -30,11 +30,15 @@ The system has two parts:
 1. **Blender Addon (`addon.py`)** — creates a socket server inside Blender that receives and executes commands
 2. **MCP Server (`src/blender_mcp/server.py`)** — implements the Model Context Protocol and connects to the Blender addon
 
+---
+
 ## Prerequisites
 
-- Blender 3.0 or newer
-- Python 3.10 or newer
-- uv package manager
+| Requirement | Version |
+|-------------|---------|
+| Blender | 3.0 or newer |
+| Python | 3.10 or newer |
+| uv | latest |
 
 ### Install uv
 
@@ -43,34 +47,74 @@ The system has two parts:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
+Restart your terminal after installing.
+
 **Windows (PowerShell)**
 ```powershell
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
-Then add uv to your PATH and restart your terminal:
+Then add uv to your PATH (restart terminal after):
 ```powershell
 $localBin = "$env:USERPROFILE\.local\bin"
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 [Environment]::SetEnvironmentVariable("Path", "$userPath;$localBin", "User")
 ```
 
+Verify uv is installed:
+```bash
+uv --version
+```
+
+---
+
 ## Installation
 
-### Step 1 — Install the Blender Addon
+### Step 1 — Clone the repo
 
-1. Download `addon.py` from this repo
-2. Open Blender
-3. Go to **Edit → Preferences → Add-ons → Install…**
-4. Select `addon.py`
-5. Enable the addon by checking the box next to **Interface: Blender MCP**
+```bash
+git clone https://github.com/jagathgj/BlenderMCP.git
+cd BlenderMCP
+```
 
-### Step 2 — Start the server in Blender
+### Step 2 — Set up the Python environment
+
+```bash
+uv venv
+source .venv/bin/activate        # macOS / Linux
+# .venv\Scripts\activate         # Windows
+```
+
+### Step 3 — Install dependencies
+
+```bash
+uv pip install mcp
+```
+
+Verify the install:
+```bash
+python3 -c "import mcp; print('mcp installed ok')"
+```
+
+### Step 4 — Install the Blender Addon
+
+1. Open Blender
+2. Go to **Edit → Preferences → Add-ons → Install…**
+3. Select `addon.py` from this repo
+4. Enable it by checking the box next to **Interface: Blender MCP**
+
+### Step 5 — Start the addon in Blender
 
 1. In the 3D Viewport press **N** to open the sidebar
 2. Click the **BlenderMCP** tab
-3. Click **Connect to Claude**
+3. Click **Connect to MCP Server**
 
-### Step 3 — Configure your AI client
+### Step 6 — Configure your AI client
+
+Find the full path to the venv Python:
+```bash
+which python3   # after activating the venv
+# e.g. path/to/BlenderMCP/.venv/bin/python3
+```
 
 #### Claude Desktop
 
@@ -83,12 +127,14 @@ Edit `claude_desktop_config.json`:
 {
     "mcpServers": {
         "blender": {
-            "command": "uvx",
-            "args": ["blender-mcp"]
+            "command": "path/to/BlenderMCP/.venv/bin/python3",
+            "args": ["path/to/BlenderMCP/src/blender_mcp/server.py"]
         }
     }
 }
 ```
+
+> Replace `path/to/BlenderMCP` with your actual clone path.
 
 #### Cursor
 
@@ -98,8 +144,8 @@ Go to **Settings → MCP** and add:
 {
     "mcpServers": {
         "blender": {
-            "command": "uvx",
-            "args": ["blender-mcp"]
+            "command": "/path/to/BlenderMCP/.venv/bin/python3",
+            "args": ["/path/to/BlenderMCP/src/blender_mcp/server.py"]
         }
     }
 }
@@ -110,8 +156,8 @@ Go to **Settings → MCP** and add:
 {
     "mcpServers": {
         "blender": {
-            "command": "cmd",
-            "args": ["/c", "uvx", "blender-mcp"]
+            "command": "C:\\path\\to\\BlenderMCP\\.venv\\Scripts\\python.exe",
+            "args": ["C:\\path\\to\\BlenderMCP\\src\\blender_mcp\\server.py"]
         }
     }
 }
@@ -124,42 +170,18 @@ Go to **Settings → MCP** and add:
     "mcpServers": {
         "blender-mcp": {
             "type": "stdio",
-            "command": "uvx",
-            "args": ["blender-mcp"]
+            "command": "/path/to/BlenderMCP/.venv/bin/python3",
+            "args": ["/path/to/BlenderMCP/src/blender_mcp/server.py"]
         }
     }
 }
 ```
 
-> ⚠️ Run only **one** instance of the MCP server at a time.
+> ⚠️ Run only **one** instance of the MCP server at a time (either Claude Desktop or Cursor, not both).
 
-## Running Locally from Source
+Restart your AI client after saving the config.
 
-```bash
-# Clone the repo
-git clone https://github.com/jagath/blender-mcp.git
-cd blender-mcp
-
-# Create virtual environment and install
-uv venv
-source .venv/bin/activate      # macOS / Linux
-# .venv\Scripts\activate       # Windows
-
-uv pip install -e .
-```
-
-Then point your AI client config at the script directly:
-
-```json
-{
-    "mcpServers": {
-        "blender": {
-            "command": "python",
-            "args": ["/absolute/path/to/blender-mcp/src/blender_mcp/server.py"]
-        }
-    }
-}
-```
+---
 
 ## Environment Variables
 
@@ -168,20 +190,13 @@ Then point your AI client config at the script directly:
 | `BLENDER_HOST` | `localhost` | Host where the Blender addon is running |
 | `BLENDER_PORT` | `9876` | Port configured in the Blender addon panel |
 
-Example for a remote Blender instance:
-```bash
-export BLENDER_HOST=192.168.1.100
-export BLENDER_PORT=9876
-uvx blender-mcp
-```
-
-Or in your MCP config:
+For a remote Blender instance, add to your MCP config:
 ```json
 {
     "mcpServers": {
         "blender": {
-            "command": "uvx",
-            "args": ["blender-mcp"],
+            "command": "/path/to/.venv/bin/python3",
+            "args": ["/path/to/server.py"],
             "env": {
                 "BLENDER_HOST": "192.168.1.100",
                 "BLENDER_PORT": "9876"
@@ -190,6 +205,8 @@ Or in your MCP config:
     }
 }
 ```
+
+---
 
 ## Available Tools
 
@@ -202,6 +219,8 @@ Or in your MCP config:
 | `get_viewport_screenshot` | Capture the 3D viewport as an image |
 | `execute_blender_code` | Run arbitrary Python / bpy code inside Blender |
 
+---
+
 ## Example Prompts
 
 - *"What objects are in my current Blender scene?"*
@@ -211,22 +230,32 @@ Or in your MCP config:
 - *"Add a sun light above the scene and set its strength to 3"*
 - *"List all mesh objects and show their bounding box dimensions"*
 
+---
+
 ## Troubleshooting
 
-**"Could not connect to Blender"**  
-Make sure you clicked **Connect to Claude** in the BlenderMCP panel inside Blender first.
+**`ModuleNotFoundError: No module named 'mcp'`**  
+The venv Python isn't being used. Make sure the `command` in your config points to `.venv/bin/python3` inside the repo, not a system Python. Run `uv pip install mcp` inside the activated venv.
+
+**`Connection closed` / MCP error -32000**  
+Usually means the server crashed on startup. Check that `mcp` is installed and the path to `server.py` in your config is correct.
+
+**`Could not connect to Blender`**  
+Make sure you clicked **Connect to MCP Server** in the BlenderMCP panel inside Blender before issuing any commands.
 
 **Connection refused on port 9876**  
-Check the port in Blender's panel matches the one in your environment variables.
-
-**Tool calls time out**  
-Break complex requests into smaller steps. Code execution has a 180-second timeout.
+Check the port in Blender's panel matches `BLENDER_PORT` (both default to 9876).
 
 **Addon not visible in the sidebar**  
 Press **N** in the 3D Viewport to reveal the sidebar, then look for the **BlenderMCP** tab.
 
+**Tool calls time out**  
+Break complex requests into smaller steps. Code execution has a 180-second timeout.
+
 **Still stuck?**  
 Disable and re-enable the addon in Blender Preferences, then click Connect again.
+
+---
 
 ## Technical Details
 
@@ -237,9 +266,13 @@ Simple JSON over TCP sockets:
 - **Request**: `{ "type": "<command>", "params": { ... } }`
 - **Response**: `{ "status": "success"|"error", "result": <any> | "message": <str> }`
 
+---
+
 ## Security
 
 The `execute_blender_code` tool runs arbitrary Python code inside Blender. Always save your work before using it, and only connect to AI services you trust.
+
+---
 
 ## Contributing
 
