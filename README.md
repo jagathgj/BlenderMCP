@@ -53,7 +53,7 @@ Restart your terminal after installing.
 ```powershell
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
-Then add uv to your PATH (restart terminal after):
+Then add uv to your PATH (windows only, restart terminal after):
 ```powershell
 $localBin = "$env:USERPROFILE\.local\bin"
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
