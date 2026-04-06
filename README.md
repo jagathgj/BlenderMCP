@@ -116,9 +116,9 @@ which python3   # after activating the venv
 # e.g. path/to/BlenderMCP/.venv/bin/python3
 ```
 
-### IBM Bob
+### IBM Bob IDE
 
-IBM Bob uses a specialized mode that provides an optimized workflow for Blender 3D development. It includes scene analysis, viewport inspection, and intelligent code generation for bpy operations.
+IBM Bob IDE uses a specialized mode that provides an optimized workflow for Blender 3D development. It includes scene analysis, viewport inspection, and intelligent code generation for bpy operations.
 
 
 1. Go to **Settings → Modes**
