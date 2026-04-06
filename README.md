@@ -116,6 +116,23 @@ which python3   # after activating the venv
 # e.g. path/to/BlenderMCP/.venv/bin/python3
 ```
 
+### IBM Bob
+
+IBM Bob uses a specialized mode that provides an optimized workflow for Blender 3D development. It includes scene analysis, viewport inspection, and intelligent code generation for bpy operations.
+
+
+1. Go to **Settings → Modes**
+
+2. Click **Import** button
+
+3. Select the `blender-bob-mode.yaml` file from this repository
+
+4. Select "🧊 Blender for 3D" mode from the mode selector in Bob IDE
+
+The Bob mode will automatically use the BlenderMCP server configured in your MCP settings.
+
+---
+
 #### Claude Desktop
 
 Edit `claude_desktop_config.json`:
