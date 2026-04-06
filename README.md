@@ -120,6 +120,27 @@ which python3   # after activating the venv
 
 IBM Bob IDE uses a specialized mode that provides an optimized workflow for Blender 3D development. It includes scene analysis, viewport inspection, and intelligent code generation for bpy operations.
 
+**Step 1: Configure MCP Server in IBM Bob IDE**
+
+1. Go to **Settings → MCP**
+
+2. Add the BlenderMCP server configuration:
+
+```json
+{
+    "mcpServers": {
+        "blender-mcp": {
+            "command": "path/to/BlenderMCP/.venv/bin/python3",
+            "args": ["path/to/BlenderMCP/src/blender_mcp/server.py"],
+            "description": "Connect Blender to AI assistants for 3D scene creation and manipulation"
+        }
+    }
+}
+```
+
+> Replace `path/to/BlenderMCP` with your actual clone path(Refer step 6) in both **command** and **args** .
+
+**Step 2: Import Bob Mode**
 
 1. Go to **Settings → Modes**
 
