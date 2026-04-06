@@ -215,7 +215,7 @@ Go to **Settings → MCP** and add:
 }
 ```
 
-> ⚠️ Run only **one** instance of the MCP server at a time (either Claude Desktop or Cursor, not both).
+> ⚠️ Run only **one** instance of the MCP server at a time (either IBM Bob or Claude Desktop, not both).
 
 Restart your AI client after saving the config.
 
